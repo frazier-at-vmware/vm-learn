@@ -17,6 +17,7 @@ const validator = require('validator');
 
 Quickbooks.setOauthVersion('2.0');
 
+
 /**
  * GET /api
  * List of API examples.
@@ -62,23 +63,18 @@ exports.getFoursquare = async (req, res, next) => {
  * Zoom API example.
  */
 exports.getZoom = async (req, res, next) => {
-  const token = await req.user.tokens.find((token) => token.kind === 'zoom');
-  const apiToken = token.accessToken;
-  console.log(apiToken);
-  let config = { headers: {'Authorization': 'Bearer ' + token.accessToken }};
-  let meetings;
-  let venueDetail;
-  let userCheckins;
-  axios.get(`https://api.zoom.us/v2/users/me/meetings`, config).then(console.log).catch(console.log)
+  axios.get(`https://api.zoom.us/v2/users/me/meetings`)
   .then((response) => {
-    const meetings = response.data.results;
+    const meeting = response.data.meetings;
+    console.log(response.data.meetings)
     res.render('api/zoom', {
       title: 'New York Times API',
-      books
+      meeting
     });
   })
   .catch((err) => {
-    const message = JSON.stringify(err.response.data.fault);
+   const message = JSON.stringify(err.response.data.fault);
+   console.log()
     next(new Error(`Zoom API - ${err.response.status} ${err.response.statusText} ${message}`));
   });
 };

@@ -71,7 +71,7 @@ passport.use(new LocalStrategy({ usernameField: 'email' }, (email, password, don
  * Sign in with Zoom.
  */
 
-const zoomStrategyConfig = new ZoomStrategy({clientID: process.env.ZOOM_ID, clientSecret: process.env.ZOOM_SECRET, callbackURL: '/auth/zoom/callback', passReqToCallback: true, profileFields: ['name', 'email', 'id']}, (req, accessToken, refreshToken, profile, done) => {
+const zoomStrategyConfig = new ZoomStrategy({clientID: process.env.ZOOM_ID, clientSecret: process.env.ZOOM_SECRET, callbackURL: '/auth/zoom/callback', passReqToCallback: true, profileFields: ['name', 'email', 'id']}, (req, accessToken, refreshToken, params, profile, done) => {
   console.log(profile) 
   if (req.user) {
     User.findOne({ zoom: profile.id }, (err, existingUser) => {
@@ -83,28 +83,31 @@ const zoomStrategyConfig = new ZoomStrategy({clientID: process.env.ZOOM_ID, clie
         User.findById(req.user.id, (err, user) => {
           if (err) { return done(err); }
           user.zoom = profile.id;
+          user.email = profile.emails[0].value;
           user.tokens.push({
             kind: 'zoom',
             accessToken,
             accessTokenExpires: moment().add(params.expires_in, 'seconds').format(),
             refreshToken,
           });
-          user.profile.name = user.profile.name || profile._json.last_name;
+          user.profile.name = user.profile.displayName || profile._json.displayName;
           user.profile.picture = user.profile.picture || profile._json.pic_url;
+          user.markModified('tokens');
           user.save((err) => {
-            req.flash('info', { msg: 'Google account has been linked.' });
+            req.flash('info', { msg: 'Zoom account has been linked.' });
             done(err, user);
           });
         });
       }
     });
-  } else {
-    User.findOne({ google: profile.id }, (err, existingUser) => {
+   } else {
+    User.findOne({ email: profile.emails[0].value }, (err, existingUser) => {
       if (err) { return done(err); }
       if (existingUser) {
+        console.log('EXISTING')
         return done(null, existingUser);
       }
-      User.findOne({ email: profile.emails[0].value }, (err, existingEmailUser) => {
+ User.findOne({ email: profile.emails[0].value }, (err, existingEmailUser) => {
         if (err) { return done(err); }
         if (existingEmailUser) {
           req.flash('errors', { msg: 'There is already an account using this email address. Sign in to that account and link it with Google manually from Account Settings.' });
@@ -117,20 +120,18 @@ const zoomStrategyConfig = new ZoomStrategy({clientID: process.env.ZOOM_ID, clie
             kind: 'zoom',
             accessToken,
             accessTokenExpires: moment().add(params.expires_in, 'seconds').format(),
-            refreshToken,
+            refreshToken
           });
-          user.profile.name = profile.displayName;
-          user.profile.gender = profile._json.gender;
-          user.profile.picture = profile._json.picture;
+          user.profile.name = user.profile.displayName || profile._json.displayName;
+          user.profile.picture = user.profile.picture || profile._json.pic_url;
+          user.markModified('tokens');
           user.save((err) => {
             done(err, user);
           });
         }
       });
-    });
-  }
-});
-    /** User.findOne(req.accessToken, (err, user) => {
+    });  
+/**      User.findOne({email: profile.emails[0].value}, (err, user) => {
         user.profile.picture = user.profile.picture || profile.photos.value;
         user.tokens.push({
           kind: 'zoom',
@@ -138,13 +139,13 @@ const zoomStrategyConfig = new ZoomStrategy({clientID: process.env.ZOOM_ID, clie
           accessTokenExpires: moment().add(params.expires_in, 'seconds').format(),
           refreshToken,
           refreshTokenExpires: moment().add(params.x_refresh_token_expires_in, 'seconds').format()})
+          user.markModified('tokens');
         user.save((err) => {
           done(err, user);
         })
-      });
-      
-  }
-  ); */
+      }); */
+    }});
+  
 
 refresh.use('zoom', zoomStrategyConfig);
 passport.use('zoom', zoomStrategyConfig);

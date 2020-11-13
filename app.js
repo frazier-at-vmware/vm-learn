@@ -18,7 +18,7 @@ const passport = require('passport');
 const expressStatusMonitor = require('express-status-monitor');
 const sass = require('node-sass-middleware');
 const multer = require('multer');
-
+const axios = require('axios');
 const upload = multer({ dest: path.join(__dirname, 'uploads') });
 
 /**
@@ -47,7 +47,7 @@ const app = express();
 /**
  * Connect to MongoDB.
  */
-mongoose.set('useFindAndModify', true);
+mongoose.set('useFindAndModify', false);
 mongoose.set('useCreateIndex', true);
 mongoose.set('useNewUrlParser', true);
 mongoose.set('useUnifiedTopology', true);
@@ -218,14 +218,16 @@ app.get('/auth/twitch/callback', passport.authenticate('twitch', { failureRedire
   res.redirect(req.session.returnTo || '/');
 });
 app.get('/auth/zoom', passport.authenticate('zoom'));
-app.get('/auth/zoom/callback', passport.authenticate('zoom', { failureRedirect: '/login' }), (req, res) => {
+app.get('/auth/zoom/callback', passport.authenticate('zoom', { failureRedirect: '/login' }), async (req, res) => {
+  const token = await req.user.tokens.find((token) => token.kind === 'zoom');
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token.accessToken}`
   res.redirect(req.session.returnTo || '/');
 });
 /**
  * OAuth authorization routes. (API examples)
  */
 app.get('/auth/zoom', passport.authorize('zoom'));
-app.get('/auth/zoom/callback', passport.authorize('zoom', { failureRedirect: '/api' }), (req, res) => {
+app.get('/auth/zoom/callback', passport.authorize('zoom', { failureRedirect: '/api' }), async (req, res) => {
   res.redirect('/api/zoom');
 });
 app.get('/auth/foursquare', passport.authorize('foursquare'));
@@ -244,7 +246,7 @@ app.get('/auth/pinterest', passport.authorize('pinterest', { scope: 'read_public
 app.get('/auth/pinterest/callback', passport.authorize('pinterest', { failureRedirect: '/login' }), (req, res) => {
   res.redirect('/api/pinterest');
 });
-app.get('/auth/quickbooks', passport.authorize('quickbooks', { scope: ['com.intuit.quickbooks.accounting'], state: 'SOME STATE' }));
+app.get('/auth/quickbooks', passport.authorize('quickbooks', { state: 'SOME STATE' }));
 app.get('/auth/quickbooks/callback', passport.authorize('quickbooks', { failureRedirect: '/login' }), (req, res) => {
   res.redirect(req.session.returnTo);
 });

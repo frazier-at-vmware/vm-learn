@@ -5,32 +5,17 @@ block content
     h2
       i.far.fa-building.fa-sm
       | Classes Scheduled via Zoom
-
-  .btn-group.d-flex(role='group')
-    a.btn.btn-primary(href='http://developer.nytimes.com/page', target='_blank').w-100
-      i.far.fa-check-square.fa-sm
-      | Overview
-    a.btn.btn-primary(href='http://prototype.nytimes.com/gst/apitool/index.html', target='_blank').w-100
-      i.fas.fa-laptop.fa-sm
-      | API Console
-    a.btn.btn-primary(href='http://developer.nytimes.com/docs', target='_blank').w-100
-      i.fas.fa-code-branch.fa-sm
-      | API Endpoints
-
-  h4 Young Adult Best Sellers
   table.table.table-striped.table-bordered
     thead
       tr
-        th Rank
-        th Title
-        th.hidden-xs Description
-        th Author
-        th.hidden-xs ISBN-13
+        th Meeting ID
+        th Topic
+        th Start Date
+        th URL
     tbody
-      for book in books
+      for m in meeting
         tr
-          td= book.rank
-          td= book.book_details[0].title
-          td.hidden-xs= book.book_details[0].description
-          td= book.book_details[0].author
-          td.hidden-xs= book.book_details[0].primary_isbn13
+          td= m.id
+          td= m.topic
+          td= m.start_time
+          td= m.join_url
