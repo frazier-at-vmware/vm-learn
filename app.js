@@ -47,7 +47,7 @@ const app = express();
 /**
  * Connect to MongoDB.
  */
-mongoose.set('useFindAndModify', false);
+mongoose.set('useFindAndModify', true);
 mongoose.set('useCreateIndex', true);
 mongoose.set('useNewUrlParser', true);
 mongoose.set('useUnifiedTopology', true);
@@ -159,6 +159,7 @@ app.get('/api/scraping', apiController.getScraping);
 app.get('/api/twilio', apiController.getTwilio);
 app.post('/api/twilio', apiController.postTwilio);
 app.get('/api/foursquare', passportConfig.isAuthenticated, passportConfig.isAuthorized, apiController.getFoursquare);
+app.get('/api/zoom', passportConfig.isAuthenticated, passportConfig.isAuthorized, apiController.getZoom);
 app.get('/api/tumblr', passportConfig.isAuthenticated, passportConfig.isAuthorized, apiController.getTumblr);
 app.get('/api/facebook', passportConfig.isAuthenticated, passportConfig.isAuthorized, apiController.getFacebook);
 app.get('/api/github', passportConfig.isAuthenticated, passportConfig.isAuthorized, apiController.getGithub);
@@ -216,10 +217,17 @@ app.get('/auth/twitch', passport.authenticate('twitch', {}));
 app.get('/auth/twitch/callback', passport.authenticate('twitch', { failureRedirect: '/login' }), (req, res) => {
   res.redirect(req.session.returnTo || '/');
 });
-
+app.get('/auth/zoom', passport.authenticate('zoom'));
+app.get('/auth/zoom/callback', passport.authenticate('zoom', { failureRedirect: '/login' }), (req, res) => {
+  res.redirect(req.session.returnTo || '/');
+});
 /**
  * OAuth authorization routes. (API examples)
  */
+app.get('/auth/zoom', passport.authorize('zoom'));
+app.get('/auth/zoom/callback', passport.authorize('zoom', { failureRedirect: '/api' }), (req, res) => {
+  res.redirect('/api/zoom');
+});
 app.get('/auth/foursquare', passport.authorize('foursquare'));
 app.get('/auth/foursquare/callback', passport.authorize('foursquare', { failureRedirect: '/api' }), (req, res) => {
   res.redirect('/api/foursquare');

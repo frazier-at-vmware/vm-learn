@@ -9,6 +9,7 @@ const { Strategy: TwitterStrategy } = require('passport-twitter');
 const { Strategy: TwitchStrategy } = require('passport-twitch-new');
 const { Strategy: GitHubStrategy } = require('passport-github2');
 const { OAuth2Strategy: GoogleStrategy } = require('passport-google-oauth');
+const ZoomStrategy = require('@giorgosavgeris/passport-zoom-oauth2');
 const { Strategy: LinkedInStrategy } = require('passport-linkedin-oauth2');
 const { Strategy: OpenIDStrategy } = require('passport-openid');
 const { OAuthStrategy } = require('passport-oauth');
@@ -17,6 +18,7 @@ const _ = require('lodash');
 const moment = require('moment');
 
 const User = require('../models/User');
+const AccessToken = require('twilio/lib/jwt/AccessToken');
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -66,8 +68,87 @@ passport.use(new LocalStrategy({ usernameField: 'email' }, (email, password, don
  */
 
 /**
- * Sign in with Snapchat.
+ * Sign in with Zoom.
  */
+
+const zoomStrategyConfig = new ZoomStrategy({clientID: process.env.ZOOM_ID, clientSecret: process.env.ZOOM_SECRET, callbackURL: '/auth/zoom/callback', passReqToCallback: true, profileFields: ['name', 'email', 'id']}, (req, accessToken, refreshToken, profile, done) => {
+  console.log(profile) 
+  if (req.user) {
+    User.findOne({ zoom: profile.id }, (err, existingUser) => {
+      if (err) { return done(err); }
+      if (existingUser && (existingUser.id !== req.user.id)) {
+        req.flash('errors', { msg: 'There is already a Zoom account that belongs to you. Sign in with that account or delete it, then link it with your current account.' });
+        done(err);
+      } else {
+        User.findById(req.user.id, (err, user) => {
+          if (err) { return done(err); }
+          user.zoom = profile.id;
+          user.tokens.push({
+            kind: 'zoom',
+            accessToken,
+            accessTokenExpires: moment().add(params.expires_in, 'seconds').format(),
+            refreshToken,
+          });
+          user.profile.name = user.profile.name || profile._json.last_name;
+          user.profile.picture = user.profile.picture || profile._json.pic_url;
+          user.save((err) => {
+            req.flash('info', { msg: 'Google account has been linked.' });
+            done(err, user);
+          });
+        });
+      }
+    });
+  } else {
+    User.findOne({ google: profile.id }, (err, existingUser) => {
+      if (err) { return done(err); }
+      if (existingUser) {
+        return done(null, existingUser);
+      }
+      User.findOne({ email: profile.emails[0].value }, (err, existingEmailUser) => {
+        if (err) { return done(err); }
+        if (existingEmailUser) {
+          req.flash('errors', { msg: 'There is already an account using this email address. Sign in to that account and link it with Google manually from Account Settings.' });
+          done(err);
+        } else {
+          const user = new User();
+          user.email = profile.emails[0].value;
+          user.zoom = profile.id;
+          user.tokens.push({
+            kind: 'zoom',
+            accessToken,
+            accessTokenExpires: moment().add(params.expires_in, 'seconds').format(),
+            refreshToken,
+          });
+          user.profile.name = profile.displayName;
+          user.profile.gender = profile._json.gender;
+          user.profile.picture = profile._json.picture;
+          user.save((err) => {
+            done(err, user);
+          });
+        }
+      });
+    });
+  }
+});
+    /** User.findOne(req.accessToken, (err, user) => {
+        user.profile.picture = user.profile.picture || profile.photos.value;
+        user.tokens.push({
+          kind: 'zoom',
+          accessToken,
+          accessTokenExpires: moment().add(params.expires_in, 'seconds').format(),
+          refreshToken,
+          refreshTokenExpires: moment().add(params.x_refresh_token_expires_in, 'seconds').format()})
+        user.save((err) => {
+          done(err, user);
+        })
+      });
+      
+  }
+  ); */
+
+refresh.use('zoom', zoomStrategyConfig);
+passport.use('zoom', zoomStrategyConfig);
+
 passport.use(new SnapchatStrategy({
   clientID: process.env.SNAPCHAT_ID,
   clientSecret: process.env.SNAPCHAT_SECRET,
@@ -541,8 +622,6 @@ const twitchStrategyConfig = new TwitchStrategy({
     });
   }
 });
-passport.use('twitch', twitchStrategyConfig);
-refresh.use('twitch', twitchStrategyConfig);
 
 /**
  * Tumblr API OAuth.
@@ -669,7 +748,7 @@ passport.use('pinterest', new OAuth2Strategy({
 }));
 
 /**
- * Intuit/QuickBooks API OAuth.
+ * Intuit/QuickBooks API OAuth. 
  */
 const quickbooksStrategyConfig = new OAuth2Strategy({
   authorizationURL: 'https://appcenter.intuit.com/connect/oauth2',
